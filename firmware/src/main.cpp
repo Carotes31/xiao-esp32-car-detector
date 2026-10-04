@@ -1,48 +1,54 @@
 #include <Arduino.h>
 #include <vector>
-#include "camera_manager.h"
-#include "sd_manager.h"
+
 #include "config.h"
+#include "camera_manager.h"
 
-// Forward declaration
-float runEdgeImpulse(const std::vector<uint8_t>& imageBuffer);
-
-// Global instances
-CameraManager camera;
-SdManager sd;
+CameraManager cam;
 
 void setup() {
   Serial.begin(115200);
   delay(1000);
 
-  Serial.println("\n\n=== ESP32-S3 Luxury Car Detector ===");
-  Serial.println("Starting initialization...");
+  Serial.println("\n\n=== Xiao ESP32-S3 Camera Test ===");
 
-  // Initialize camera
-  if (!camera.begin()) {
-    Serial.println("ERROR: Camera initialization failed!");
-    return;
-  }
-  Serial.println("✓ Camera initialized");
-
-  // Initialize SD card
-  if (!sd.begin()) {
-    Serial.println("WARNING: SD card initialization failed - continuing without SD storage");
-  } else {
-    Serial.println("✓ SD card initialized");
+  if (!cam.beginCamera()) {
+    Serial.println("Camera failed");
+    while (1) {
+      delay(1000);
+    }
   }
 
-  Serial.println("=== Ready for capture ===\n");
+  if (!cam.beginSd()) {
+    Serial.println("SD failed, continuing anyway");
+  }
+
+  if (!cam.beginWifiAp()) {
+    Serial.println("WiFi AP failed");
+  }
+
+  Serial.println("Base setup OK\n");
 }
 
 void loop() {
-  // Placeholder main loop
-  // Later this will:
-  // 1. Capture a frame
-  // 2. Run Edge Impulse inference
-  // 3. If confidence > threshold, trigger burst capture
-  // 4. Save to SD + log event
-  
-  delay(1000);
-  Serial.println("Loop running...");
+  static int count = 0;
+  std::vector<uint8_t> frame;
+
+  if (cam.captureFrame(frame)) {
+    String fileName = cam.timestampFileName("test");
+    if (cam.saveJpeg(fileName, frame)) {
+      Serial.printf("Frame saved: %s\n", fileName.c_str());
+    }
+  }
+
+  Serial.println("Waiting...");
+  delay(5000);
+
+  count++;
+  if (count > 5) {
+    Serial.println("End of basic validation cycle");
+    while (1) {
+      delay(1000);
+    }
+  }
 }
